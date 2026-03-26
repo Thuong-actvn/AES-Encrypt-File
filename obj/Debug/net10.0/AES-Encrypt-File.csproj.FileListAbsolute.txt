@@ -1,0 +1,14 @@
+D:\VS code\AES-Encrypt-File\bin\Debug\net10.0\AES-Encrypt-File.exe
+D:\VS code\AES-Encrypt-File\bin\Debug\net10.0\AES-Encrypt-File.deps.json
+D:\VS code\AES-Encrypt-File\bin\Debug\net10.0\AES-Encrypt-File.runtimeconfig.json
+D:\VS code\AES-Encrypt-File\bin\Debug\net10.0\AES-Encrypt-File.dll
+D:\VS code\AES-Encrypt-File\bin\Debug\net10.0\AES-Encrypt-File.pdb
+D:\VS code\AES-Encrypt-File\obj\Debug\net10.0\AES-Encrypt-File.GeneratedMSBuildEditorConfig.editorconfig
+D:\VS code\AES-Encrypt-File\obj\Debug\net10.0\AES-Encrypt-File.AssemblyInfoInputs.cache
+D:\VS code\AES-Encrypt-File\obj\Debug\net10.0\AES-Encrypt-File.AssemblyInfo.cs
+D:\VS code\AES-Encrypt-File\obj\Debug\net10.0\AES-Encrypt-File.csproj.CoreCompileInputs.cache
+D:\VS code\AES-Encrypt-File\obj\Debug\net10.0\AES-Encrypt-File.dll
+D:\VS code\AES-Encrypt-File\obj\Debug\net10.0\refint\AES-Encrypt-File.dll
+D:\VS code\AES-Encrypt-File\obj\Debug\net10.0\AES-Encrypt-File.pdb
+D:\VS code\AES-Encrypt-File\obj\Debug\net10.0\AES-Encrypt-File.genruntimeconfig.cache
+D:\VS code\AES-Encrypt-File\obj\Debug\net10.0\ref\AES-Encrypt-File.dll
