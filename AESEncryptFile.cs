@@ -8,6 +8,7 @@ class AESEncryptFile
 {
     // --- 1. AES CORE TABLES ---
     private static readonly byte[] SBox = {
+        //00   01   02     03   04     05    06    07    08    09    0A    0B    0C    0D    0E    0F
         0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
         0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
         0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
@@ -27,6 +28,7 @@ class AESEncryptFile
     };
 
     private static readonly byte[] InvSBox = {
+        //00   01   02     03   04     05    06    07    08    09    0A    0B    0C    0D    0E    0F
         0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
         0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb,
         0x54, 0x7b, 0x94, 0x32, 0xa6, 0xc2, 0x23, 0x3d, 0xee, 0x4c, 0x95, 0x0b, 0x42, 0xfa, 0xc3, 0x4e,
@@ -47,7 +49,7 @@ class AESEncryptFile
 
     private static readonly byte[] Rcon = {
         0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d, 0x9a
-    };
+    }; //phép nhân 2 (dịch trái 1 bit) trong GF(2^8) nếu byte > 0x80 thì XOR với 0x1b -->bảng Rcon
 
     // --- 2. GF(2^8) MATH ---
     private static byte GFMul(byte a, byte b)
@@ -65,6 +67,11 @@ class AESEncryptFile
         }
         return p;
     }
+    /*
+        Dịch phải bit của b để đọc hệ số (nếu = 1 thì p ^= a) đồng thời dịch bit của a
+        để tăng số mũ tương ứng với hệ số tiếp theo của b được đọc,
+        kiểm tra bit cao nhất của a nếu = 1 (tràn) thì a ^= 0x1b
+    */
 
     // --- 3. KEY EXPANSION ---
     private static void RotWord(byte[] word)
@@ -86,37 +93,18 @@ class AESEncryptFile
 
     private static byte[] KeyExpansion(byte[] key)
     {
-        int nk = key.Length / 4;
-        int nr = nk + 6;
-        byte[] roundKeys = new byte[4 * 4 * (nr + 1)]; // 4 bytes/word * 4 words/round * (nr+1) rounds
+        int nk = key.Length / 4; //số từ khóa: ví dụ aes-128 = 32bytes/4 = 8 từ khóa
+        int nr = nk + 6; //số vòng AES
+        byte[] roundKeys = new byte[4 * 4 * (nr + 1)]; // 4 bytes/word * 4 words/round * (nr+1) rounds mỗi round làm việc với block 128bit
 
-        for (int i = 0; i < nk; i++)
-        {
-            roundKeys[i * 16]     = key[i * 4];
-            roundKeys[i * 16 + 1] = key[i * 4 + 1];
-            roundKeys[i * 16 + 2] = key[i * 4 + 2];
-            roundKeys[i * 16 + 3] = key[i * 4 + 3]; // Wait, actually words are stored continuously
-            // using a different layout for simpler array copies: 
-            // roundKeys array is a flat array of bytes where every 4 bytes is a word.
-        }
-
-        // Reset to fill word by word (i is word index)
-        for (int i = 0; i < nk; i++)
-        {
-            roundKeys[i * 4 + 0] = key[i * 4 + 0];
-            roundKeys[i * 4 + 1] = key[i * 4 + 1];
-            roundKeys[i * 4 + 2] = key[i * 4 + 2];
-            roundKeys[i * 4 + 3] = key[i * 4 + 3];
-        }
+        // Copy khóa ban đầu vào đầu mảng roundKeys (nk words = key.Length bytes)
+        Array.Copy(key, roundKeys, key.Length);
 
         byte[] temp = new byte[4];
 
-        for (int i = nk; i < 4 * (nr + 1); i++)
+        for (int i = nk; i < 4 * (nr + 1); i++) //4*(nr+1) là tổng số lượng word cần
         {
-            temp[0] = roundKeys[(i - 1) * 4 + 0];
-            temp[1] = roundKeys[(i - 1) * 4 + 1];
-            temp[2] = roundKeys[(i - 1) * 4 + 2];
-            temp[3] = roundKeys[(i - 1) * 4 + 3];
+            Array.Copy(roundKeys, (i - 1) * 4, temp, 0, 4); //copy 4 bytes từ roundKeys[(i - 1) * 4] (bắt đầu từ bytes đầu tiên của word ngay trước i) vào temp, mỗi lần chạy for lại cập nhật temp mới
 
             if (i % nk == 0)
             {
@@ -128,7 +116,7 @@ class AESEncryptFile
             {
                 SubWord(temp);
             }
-
+            //XOR các bytes
             roundKeys[i * 4 + 0] = (byte)(roundKeys[(i - nk) * 4 + 0] ^ temp[0]);
             roundKeys[i * 4 + 1] = (byte)(roundKeys[(i - nk) * 4 + 1] ^ temp[1]);
             roundKeys[i * 4 + 2] = (byte)(roundKeys[(i - nk) * 4 + 2] ^ temp[2]);
@@ -139,13 +127,14 @@ class AESEncryptFile
     }
 
     // --- 4. STATE OPERATIONS (ENCRYPT) ---
-    private static void AddRoundKey(byte[] state, byte[] roundKeys, int round)
+    private static void AddRoundKey(byte[] state, byte[] roundKeys, int round) //Xử lý theo cột (XOR với state theo cột)
     {
         for (int c = 0; c < 4; c++)
         {
             for (int r = 0; r < 4; r++)
             {
                 state[r + c * 4] ^= roundKeys[round * 16 + c * 4 + r];
+                //Mỗi culumn cách nhau 4 bytes (*4) & Mỗi round cách nhau 16 bytes (*16)
             }
         }
     }
@@ -162,7 +151,7 @@ class AESEncryptFile
     {
         byte[] temp = new byte[16];
         Array.Copy(state, temp, 16);
-
+        // Culumn-major
         // Row 0: No shift
         // Row 1: Shift left 1
         state[1] = temp[5]; state[5] = temp[9]; state[9] = temp[13]; state[13] = temp[1];
@@ -186,7 +175,14 @@ class AESEncryptFile
         }
 
         Array.Copy(temp, state, 16);
+        /*Ma trận MixColumns
+            |02 03 01 01|
+            |01 02 03 01|
+            |01 01 02 03|
+            |03 01 01 02|
+        */
     }
+
 
     // --- 5. STATE OPERATIONS (DECRYPT) ---
     private static void InvSubBytes(byte[] state)
@@ -225,6 +221,12 @@ class AESEncryptFile
         }
 
         Array.Copy(temp, state, 16);
+        /*Ma trận Inverse MixColumns
+            | 0e 0b 0d 09 |
+            | 09 0e 0b 0d |
+            | 0d 09 0e 0b |
+            | 0b 0d 09 0e |
+        */
     }
 
     // --- 6. BLOCK LEVEL ENCRYPT / DECRYPT ---
@@ -280,7 +282,7 @@ class AESEncryptFile
         Array.Copy(input, padded, input.Length);
         for (int i = input.Length; i < padded.Length; i++)
         {
-            padded[i] = (byte)paddingLen;
+            padded[i] = (byte)paddingLen; //gán tất cả bytes thiếu = số lượng byte cần thêm
         }
         return padded;
     }
@@ -288,8 +290,8 @@ class AESEncryptFile
     private static byte[] RemovePKCS7Padding(byte[] input)
     {
         if (input.Length == 0) return input;
-        int paddingLen = input[input.Length - 1];
-        if (paddingLen < 1 || paddingLen > 16)
+        int paddingLen = input[^1];
+        if (paddingLen < 1 || paddingLen > 16) //kiểm tra byte cuối
         {
             throw new Exception("Lỗi: Padding không hợp lệ (sai khóa hoặc dữ liệu bị hỏng).");
         }
@@ -320,17 +322,13 @@ class AESEncryptFile
     public static byte[] EncryptCBC(byte[] data, byte[] key)
     {
         byte[] roundKeys = KeyExpansion(key);
-        int nr = roundKeys.Length / 16 - 1;
+        int nr = roundKeys.Length / 16 - 1; //  byte[] roundKeys = new byte[4 * 4 * (nr + 1)];
 
         byte[] paddedData = ApplyPKCS7Padding(data);
         byte[] encryptedData = new byte[16 + paddedData.Length]; // 16 bytes IV + Encrypted Data
 
-        // Sinh IV ngẫu nhiên an toàn 16 bytes
-        byte[] iv = new byte[16];
-        using (var rng = RandomNumberGenerator.Create())
-        {
-            rng.GetBytes(iv);
-        }
+        // Sinh IV (Initialization vector) ngẫu nhiên an toàn 16 bytes
+        byte[] iv = RandomNumberGenerator.GetBytes(16); //Cryptographically Secure Random Number Generator (CSPRNG)
         Array.Copy(iv, 0, encryptedData, 0, 16);
 
         byte[] previousBlock = new byte[16];
@@ -346,7 +344,7 @@ class AESEncryptFile
             
             byte[] encryptedBlock = EncryptBlock(block, roundKeys, nr);
             Array.Copy(encryptedBlock, 0, encryptedData, 16 + i, 16);
-            Array.Copy(encryptedBlock, previousBlock, 16); // Ghi đè prepBlock cho vòng lặp sau
+            Array.Copy(encryptedBlock, previousBlock, 16); // cập nhật previousBlock
         }
 
         return encryptedData;
@@ -379,7 +377,7 @@ class AESEncryptFile
             XorBlock(decryptedBlock, previousBlock);
 
             Array.Copy(decryptedBlock, 0, decryptedDataPadded, i - 16, 16);
-            Array.Copy(block, previousBlock, 16); // Setup ciphertext block cho lần lặp sau
+            Array.Copy(block, previousBlock, 16); // Cập nhật previousBlock
         }
         return RemovePKCS7Padding(decryptedDataPadded);
     }
@@ -396,13 +394,13 @@ class AESEncryptFile
         // Tự tạo file input nếu chưa có
         if (!File.Exists(inputFilePath))
         {
-            File.WriteAllText(inputFilePath, "New input file 😊😊😒😁😁😁");
-            Console.WriteLine($"[Info] Đã tạo file sample tại: {inputFilePath}");
+            File.WriteAllText(inputFilePath, "New input file test😊😊😒😁😁😁");
+            Console.WriteLine($"[Info] Đã tạo file test: {inputFilePath}");
         }
 
         while (true)
         {
-            Console.WriteLine("\n=== AES File Encryption System (CBC Mode) ===");
+            Console.WriteLine("\n===== AES File Encryption System (CBC Mode) =====");
             Console.WriteLine($"Thư mục làm việc: {currentDir}");
             Console.WriteLine("1. Mã hóa file (input.txt)");
             Console.WriteLine("2. Giải mã file (encrypted.txt)");
@@ -426,7 +424,7 @@ class AESEncryptFile
                 // Kiểm tra kích thước byte để đảm bảo khóa đủ (kí tự có dấu utf-8 dễ làm khóa bị dài hơn)
                 if (keyBytes.Length != 16 && keyBytes.Length != 24 && keyBytes.Length != 32)
                 {
-                    Console.WriteLine($"[Lỗi] Kích thước byte của khóa là {keyBytes.Length} (UTF-8)");
+                    Console.WriteLine($"[Lỗi] Khóa không hợp lệ: {keyBytes.Length} bytes (UTF-8)");
                     continue;
                 }
 
