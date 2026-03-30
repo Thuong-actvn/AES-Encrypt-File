@@ -388,7 +388,7 @@ class AESEncryptFile
         Console.OutputEncoding = Encoding.UTF8;
         string currentDir = Directory.GetCurrentDirectory();
         string inputFilePath = Path.Combine(currentDir, "input.txt");
-        string encryptedFilePath = Path.Combine(currentDir, "encrypted.txt");
+        string encryptedFilePath = Path.Combine(currentDir, "encrypted.bin");
         string decryptedFilePath = Path.Combine(currentDir, "decrypted.txt");
 
         // Tự tạo file input nếu chưa có
@@ -403,7 +403,7 @@ class AESEncryptFile
             Console.WriteLine("\n===== AES File Encryption System (CBC Mode) =====");
             Console.WriteLine($"Thư mục làm việc: {currentDir}");
             Console.WriteLine("1. Mã hóa file (input.txt)");
-            Console.WriteLine("2. Giải mã file (encrypted.txt)");
+            Console.WriteLine("2. Giải mã file (encrypted.bin)");
             Console.WriteLine("3. Thoát");
             Console.Write("Lựa chọn (1-3): ");
             string? choice = Console.ReadLine()?.Trim();
@@ -446,8 +446,7 @@ class AESEncryptFile
                         byte[] encryptedData = EncryptCBC(fileData, keyBytes);
                         sw.Stop();
                         
-                        string base64Encrypted = Convert.ToBase64String(encryptedData);
-                        File.WriteAllText(encryptedFilePath, base64Encrypted);
+                        File.WriteAllBytes(encryptedFilePath, encryptedData);
                         Console.WriteLine($"[Thành công] Đã mã hóa xong. Dữ liệu lưu tại: {encryptedFilePath}");
                         Console.WriteLine($"Thời gian mã hóa: {sw.Elapsed.TotalSeconds:F5} s");
                     }
@@ -460,8 +459,7 @@ class AESEncryptFile
                         }
 
                         Console.WriteLine("Đang bắt đầu giải mã...");
-                        string base64Encrypted = File.ReadAllText(encryptedFilePath);
-                        byte[] encryptedData = Convert.FromBase64String(base64Encrypted);
+                        byte[] encryptedData = File.ReadAllBytes(encryptedFilePath);
                         
                         sw.Start();
                         byte[] decryptedData = DecryptCBC(encryptedData, keyBytes);
