@@ -51,6 +51,26 @@ class AESEncryptFile
         0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d, 0x9a
     }; //phép nhân 2 (dịch trái 1 bit) trong GF(2^8) nếu byte > 0x80 thì XOR với 0x1b -->bảng Rcon
 
+    // --- PRECOMPUTED GF(2^8) MULTIPLICATION TABLES ---
+    // Tra bảng O(1) thay vì gọi GFMul() với vòng lặp 8 lần mỗi lần gọi
+    // Dùng cho MixColumns (Mul2, Mul3) và InvMixColumns (Mul9, Mul11, Mul13, Mul14)
+    private static readonly byte[] Mul2 = GenerateMultiplyTable(0x02);
+    private static readonly byte[] Mul3 = GenerateMultiplyTable(0x03);
+    private static readonly byte[] Mul9 = GenerateMultiplyTable(0x09);
+    private static readonly byte[] Mul11 = GenerateMultiplyTable(0x0b);
+    private static readonly byte[] Mul13 = GenerateMultiplyTable(0x0d);
+    private static readonly byte[] Mul14 = GenerateMultiplyTable(0x0e);
+
+    private static byte[] GenerateMultiplyTable(byte multiplier)
+    {
+        byte[] table = new byte[256];
+        for (int i = 0; i < 256; i++)
+        {
+            table[i] = GFMul(multiplier, (byte)i);
+        }
+        return table;
+    }
+
     // --- 2. GF(2^8) MATH ---
     private static byte GFMul(byte a, byte b)
     {
@@ -168,10 +188,12 @@ class AESEncryptFile
 
         for (int c = 0; c < 4; c++)
         {
-            temp[0 + c * 4] = (byte)(GFMul(0x02, state[0 + c * 4]) ^ GFMul(0x03, state[1 + c * 4]) ^ state[2 + c * 4] ^ state[3 + c * 4]);
-            temp[1 + c * 4] = (byte)(state[0 + c * 4] ^ GFMul(0x02, state[1 + c * 4]) ^ GFMul(0x03, state[2 + c * 4]) ^ state[3 + c * 4]);
-            temp[2 + c * 4] = (byte)(state[0 + c * 4] ^ state[1 + c * 4] ^ GFMul(0x02, state[2 + c * 4]) ^ GFMul(0x03, state[3 + c * 4]));
-            temp[3 + c * 4] = (byte)(GFMul(0x03, state[0 + c * 4]) ^ state[1 + c * 4] ^ state[2 + c * 4] ^ GFMul(0x02, state[3 + c * 4]));
+            int idx = c * 4;
+            byte s0 = state[idx + 0], s1 = state[idx + 1], s2 = state[idx + 2], s3 = state[idx + 3];
+            temp[idx + 0]     = (byte)(Mul2[s0] ^ Mul3[s1] ^ s2 ^ s3);
+            temp[idx + 1] = (byte)(s0 ^ Mul2[s1] ^ Mul3[s2] ^ s3);
+            temp[idx + 2] = (byte)(s0 ^ s1 ^ Mul2[s2] ^ Mul3[s3]);
+            temp[idx + 3] = (byte)(Mul3[s0] ^ s1 ^ s2 ^ Mul2[s3]);
         }
 
         Array.Copy(temp, state, 16);
@@ -214,10 +236,12 @@ class AESEncryptFile
 
         for (int c = 0; c < 4; c++)
         {
-            temp[0 + c * 4] = (byte)(GFMul(0x0e, state[0 + c * 4]) ^ GFMul(0x0b, state[1 + c * 4]) ^ GFMul(0x0d, state[2 + c * 4]) ^ GFMul(0x09, state[3 + c * 4]));
-            temp[1 + c * 4] = (byte)(GFMul(0x09, state[0 + c * 4]) ^ GFMul(0x0e, state[1 + c * 4]) ^ GFMul(0x0b, state[2 + c * 4]) ^ GFMul(0x0d, state[3 + c * 4]));
-            temp[2 + c * 4] = (byte)(GFMul(0x0d, state[0 + c * 4]) ^ GFMul(0x09, state[1 + c * 4]) ^ GFMul(0x0e, state[2 + c * 4]) ^ GFMul(0x0b, state[3 + c * 4]));
-            temp[3 + c * 4] = (byte)(GFMul(0x0b, state[0 + c * 4]) ^ GFMul(0x0d, state[1 + c * 4]) ^ GFMul(0x09, state[2 + c * 4]) ^ GFMul(0x0e, state[3 + c * 4]));
+            int idx = c * 4;
+            byte s0 = state[idx + 0], s1 = state[idx + 1], s2 = state[idx + 2], s3 = state[idx + 3];
+            temp[idx + 0]     = (byte)(Mul14[s0] ^ Mul11[s1] ^ Mul13[s2] ^ Mul9[s3]);
+            temp[idx + 1] = (byte)(Mul9[s0]  ^ Mul14[s1] ^ Mul11[s2] ^ Mul13[s3]);
+            temp[idx + 2] = (byte)(Mul13[s0] ^ Mul9[s1]  ^ Mul14[s2] ^ Mul11[s3]);
+            temp[idx + 3] = (byte)(Mul11[s0] ^ Mul13[s1] ^ Mul9[s2]  ^ Mul14[s3]);
         }
 
         Array.Copy(temp, state, 16);
